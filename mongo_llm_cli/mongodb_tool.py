@@ -207,4 +207,98 @@ class MongoDBTool:
                 else:
                     serialized_doc[key] = value
             result.append(serialized_doc)
-        return result 
+        return result
+
+    def aggregate_documents(self, collection: str, pipeline: List[Dict]) -> List[Dict]:
+        """
+        Run an aggregation pipeline on a collection.
+
+        Args:
+            collection: Name of the collection.
+            pipeline: List of aggregation pipeline stages.
+
+        Returns:
+            List[Dict]: Aggregation results.
+        """
+        cursor = self.db[collection].aggregate(pipeline)
+        return list(self._serialize_documents(cursor))
+
+    def count_documents(self, collection: str, filter: Dict) -> int:
+        """
+        Count the number of documents matching a filter.
+
+        Args:
+            collection: Name of the collection.
+            filter: MongoDB filter query.
+
+        Returns:
+            int: Number of matching documents.
+        """
+        filter = self._process_object_ids(filter)
+        return self.db[collection].count_documents(filter)
+
+    def distinct_values(self, collection: str, field: str, filter: Optional[Dict] = None) -> List[Any]:
+        """
+        Get all distinct values for a field in a collection.
+
+        Args:
+            collection: Name of the collection.
+            field: Field name for which to return distinct values.
+            filter: Optional filter to apply before getting distinct values.
+
+        Returns:
+            List[Any]: List of distinct values.
+        """
+        filter = self._process_object_ids(filter) if filter else {}
+        return self.db[collection].distinct(field, filter)
+
+    def rename_collection(self, old_name: str, new_name: str) -> None:
+        """
+        Rename a collection.
+
+        Args:
+            old_name: Current name of the collection.
+            new_name: New name for the collection.
+        """
+        self.db[old_name].rename(new_name)
+
+    def get_collection_stats(self, collection: str) -> Dict:
+        """
+        Get statistics about a collection.
+
+        Args:
+            collection: Name of the collection.
+
+        Returns:
+            Dict: Collection statistics.
+        """
+        return self.db.command("collstats", collection)
+
+    def bulk_write(self, collection: str, operations: List[Dict]) -> Dict:
+        """
+        Perform bulk write operations (insert, update, delete).
+
+        Args:
+            collection: Name of the collection.
+            operations: List of operations (dicts with 'type' and relevant fields).
+
+        Returns:
+            Dict: Bulk write result summary.
+        """
+        from pymongo import InsertOne, UpdateOne, DeleteOne
+
+        ops = []
+        for op in operations:
+            if op["type"] == "insert":
+                ops.append(InsertOne(op["document"]))
+            elif op["type"] == "update":
+                ops.append(UpdateOne(op["filter"], op["update"]))
+            elif op["type"] == "delete":
+                ops.append(DeleteOne(op["filter"]))
+        result = self.db[collection].bulk_write(ops)
+        return {
+            "inserted_count": result.inserted_count,
+            "modified_count": result.modified_count,
+            "deleted_count": result.deleted_count,
+            "upserted_count": result.upserted_count,
+        } 

@@ -1,0 +1,23 @@
+# Test queries for mongo-llm run "query"
+
+# --- Existing methods ---
+mongo-llm run "List all collections"
+mongo-llm run "Create a collection named users"
+mongo-llm run "Drop the collection named users"
+mongo-llm run "List all indexes in the users collection"
+mongo-llm run "Create an index on the email field in the users collection"
+mongo-llm run "Drop the index named email_1 from the users collection"
+mongo-llm run "Insert a document into users: {\"name\": \"Alice\", \"email\": \"alice@example.com\"}"
+mongo-llm run "Find all users with the name Alice"
+mongo-llm run "Update all users with the name Alice to set email to alice@newdomain.com"
+mongo-llm run "Delete all users with the name Alice"
+
+# --- New methods ---
+mongo-llm run "Aggregate users by country and count them"
+mongo-llm run "Count the number of users with the name Alice"
+mongo-llm run "List all unique email domains in the users collection"
+mongo-llm run "Rename the collection users to customers"
+mongo-llm run "Show stats for the users collection"
+mongo-llm run "Bulk insert these users: [{\"name\": \"Bob\"}, {\"name\": \"Carol\"}]"
+mongo-llm run "Bulk update users with name Bob to set age to 30"
+mongo-llm run "Bulk delete users with name Carol" 

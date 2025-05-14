@@ -108,7 +108,7 @@ def call_llm(query: str, schema: Dict[str, Any], api_key: str) -> Dict[str, Any]
     
     # Build tool schema
     tool_schema = build_tool_schema()
-    
+    print(tool_schema)
     # Construct prompt
     prompt = construct_prompt(query, schema, tool_schema)
     
