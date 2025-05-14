@@ -188,25 +188,33 @@ class MongoDBTool:
                 
         return result
         
-    def _serialize_documents(self, cursor) -> List[Dict]:
+    def _serialize_document(self, doc: Dict) -> Dict:
+        """Serialize a single MongoDB document to JSON-compatible format."""
+        serialized_doc = {}
+        for key, value in doc.items():
+            if isinstance(value, ObjectId):
+                serialized_doc[key] = str(value)
+            # Add handling for other BSON types if necessary (e.g., datetime)
+            # For example, to convert datetime objects to ISO format strings:
+            # elif isinstance(value, datetime.datetime):
+            #     serialized_doc[key] = value.isoformat()
+            else:
+                serialized_doc[key] = value
+        return serialized_doc
+
+    def _serialize_documents(self, cursor_or_list: Union[pymongo.cursor.Cursor, List[Dict]]) -> List[Dict]:
         """
-        Serialize MongoDB documents to JSON-compatible format.
+        Serialize MongoDB documents from a cursor or list to JSON-compatible format.
         
         Args:
-            cursor: MongoDB cursor containing documents.
+            cursor_or_list: MongoDB cursor or list containing documents.
             
         Returns:
             List[Dict]: Serialized documents.
         """
         result = []
-        for doc in cursor:
-            serialized_doc = {}
-            for key, value in doc.items():
-                if isinstance(value, ObjectId):
-                    serialized_doc[key] = str(value)
-                else:
-                    serialized_doc[key] = value
-            result.append(serialized_doc)
+        for doc in cursor_or_list: # Works for both cursor and list
+            result.append(self._serialize_document(doc))
         return result
 
     def aggregate_documents(self, collection: str, pipeline: List[Dict]) -> List[Dict]:
@@ -301,4 +309,165 @@ class MongoDBTool:
             "modified_count": result.modified_count,
             "deleted_count": result.deleted_count,
             "upserted_count": result.upserted_count,
-        } 
+        }
+
+    def find_one_document(
+        self, collection: str, filter: Dict, projection: Optional[Dict] = None
+    ) -> Optional[Dict]:
+        """
+        Find a single document in a collection.
+
+        Args:
+            collection: Name of the collection.
+            filter: MongoDB filter query.
+            projection: Optional. A dictionary specifying which fields to include or exclude.
+                        Example: {"name": 1, "email": 1, "_id": 0}
+
+        Returns:
+            Optional[Dict]: The matching document, or None if no document is found.
+                            ObjectId fields are serialized to strings.
+        """
+        filter = self._process_object_ids(filter)
+        document = self.db[collection].find_one(filter, projection)
+        if document:
+            return self._serialize_document(document)
+        return None
+
+    def insert_many_documents(self, collection: str, documents: List[Dict]) -> List[str]:
+        """
+        Insert multiple documents into a collection.
+
+        Args:
+            collection: Name of the collection.
+            documents: A list of documents to insert.
+
+        Returns:
+            List[str]: A list of string representations of the _ids of the inserted documents.
+        """
+        if not documents:
+            return []
+        result = self.db[collection].insert_many(documents)
+        return [str(inserted_id) for inserted_id in result.inserted_ids]
+
+    def update_one_document(
+        self, collection: str, filter: Dict, update: Dict, upsert: bool = False
+    ) -> Dict:
+        """
+        Update a single document in a collection.
+
+        Args:
+            collection: Name of the collection.
+            filter: MongoDB filter query.
+            update: MongoDB update operations (e.g., using $set, $inc).
+            upsert: If True, creates a new document if no document matches the filter. Default is False.
+
+        Returns:
+            Dict: A dictionary containing:
+                  - 'matched_count': Number of documents matched.
+                  - 'modified_count': Number of documents modified.
+                  - 'upserted_id': The _id of the upserted document if an upsert occurred, else None.
+                                   The _id is returned as a string.
+        """
+        filter = self._process_object_ids(filter)
+        result = self.db[collection].update_one(filter, update, upsert=upsert)
+        upserted_id_str = str(result.upserted_id) if result.upserted_id else None
+        return {
+            "matched_count": result.matched_count,
+            "modified_count": result.modified_count,
+            "upserted_id": upserted_id_str,
+        }
+
+    def delete_one_document(self, collection: str, filter: Dict) -> int:
+        """
+        Delete a single document from a collection.
+
+        Args:
+            collection: Name of the collection.
+            filter: MongoDB filter query.
+
+        Returns:
+            int: The number of documents deleted (0 or 1).
+        """
+        filter = self._process_object_ids(filter)
+        result = self.db[collection].delete_one(filter)
+        return result.deleted_count
+
+    def find_one_and_update(
+        self,
+        collection: str,
+        filter: Dict,
+        update: Dict,
+        projection: Optional[Dict] = None,
+        sort: Optional[List[Tuple[str, int]]] = None,
+        upsert: bool = False,
+        return_document: str = "before",
+    ) -> Optional[Dict]:
+        """
+        Atomically find a single document and update it.
+
+        Args:
+            collection: Name of the collection.
+            filter: MongoDB filter query.
+            update: MongoDB update operations.
+            projection: Optional. Specifies which fields to return.
+            sort: Optional. Specifies the order if multiple documents match the filter.
+                  Example: [("age", pymongo.DESCENDING)]
+            upsert: Optional. If True, creates a new document if no match is found. Default False.
+            return_document: Optional. Specifies whether to return the document
+                             as it was "before" the update or "after".
+                             Accepts "before" or "after". Default "before".
+
+        Returns:
+            Optional[Dict]: The document (with ObjectIds serialized to strings)
+                            or None if no document matches (and upsert is False).
+        """
+        from pymongo import ReturnDocument
+
+        filter = self._process_object_ids(filter)
+        
+        return_doc_option = ReturnDocument.BEFORE
+        if return_document.lower() == "after":
+            return_doc_option = ReturnDocument.AFTER
+
+        doc = self.db[collection].find_one_and_update(
+            filter,
+            update,
+            projection=projection,
+            sort=sort,
+            upsert=upsert,
+            return_document=return_doc_option,
+        )
+        if doc:
+            return self._serialize_document(doc)
+        return None
+
+    def run_command(self, command: Union[Dict, str], **kwargs) -> Dict:
+        """
+        Run a database command.
+
+        Args:
+            command: The command to run (e.g., "ping", {"buildInfo": 1}).
+            **kwargs: Additional arguments for the command.
+
+        Returns:
+            Dict: The result of the command. ObjectIds and other BSON types
+                  (like datetime) are serialized where possible.
+        """
+        raw_result = self.db.command(command, **kwargs)
+
+        # Recursively serialize known BSON types to JSON-friendly formats.
+        def serialize_value(value: Any) -> Any:
+            if isinstance(value, ObjectId):
+                return str(value)
+            elif isinstance(value, list):
+                return [serialize_value(v) for v in value]
+            elif isinstance(value, dict):
+                return {k: serialize_value(v) for k, v in value.items()}
+            # Example: Add datetime serialization if needed
+            # import datetime # Add to top-level imports if used here
+            # from bson.datetime_ms import DatetimeMS # Add to top-level imports if used here
+            # if isinstance(value, datetime.datetime) or isinstance(value, DatetimeMS):
+            #    return value.isoformat()
+            return value
+
+        return serialize_value(raw_result)

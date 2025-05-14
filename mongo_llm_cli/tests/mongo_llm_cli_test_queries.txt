@@ -20,4 +20,28 @@ mongo-llm run "Rename the collection users to customers"
 mongo-llm run "Show stats for the users collection"
 mongo-llm run "Bulk insert these users: [{\"name\": \"Bob\"}, {\"name\": \"Carol\"}]"
 mongo-llm run "Bulk update users with name Bob to set age to 30"
-mongo-llm run "Bulk delete users with name Carol" 
+mongo-llm run "Bulk delete users with name Carol"
+
+# --- Test find_one_document ---
+mongo-llm run "Find one user where their email is 'test@example.com' in the 'users' collection."
+mongo-llm run "Get a single product from 'products' with SKU 'XYZ123', show only name and price."
+
+# --- Test insert_many_documents ---
+mongo-llm run "Bulk insert into 'sensor_readings' these documents: [{\"sensor_id\": \"A1\", \"value\": 25.5, \"unit\": \"C\"}, {\"sensor_id\": \"B2\", \"value\": 60, \"unit\": \"%\"}]."
+mongo-llm run "Add these new employees to the 'employees' collection: [{\"name\": \"John Doe\", \"department\": \"HR\"}, {\"name\": \"Jane Smith\", \"department\": \"Engineering\"}]."
+
+# --- Test update_one_document ---
+mongo-llm run "Update the status of order 'ORD100' in 'orders' to 'shipped'."
+mongo-llm run "Increment the login count for user_id 'user456' in 'user_stats' and set last_login to now. Upsert if not exists."
+
+# --- Test delete_one_document ---
+mongo-llm run "Delete a single log entry from 'activity_logs' where the event_type is 'test_event'."
+mongo-llm run "Remove one item from 'cart_items' with item_id 'ITEM007'."
+
+# --- Test find_one_and_update ---
+mongo-llm run "Find user 'jane.doe@example.com' in 'users', set their status to 'active', and return the updated document."
+mongo-llm run "Decrement stock for product_id 'PROD001' in 'inventory' by 1, and return the document before the update."
+
+# --- Test run_command ---
+mongo-llm run "Run a ping command against the database."
+mongo-llm run "Execute the command to get build info for the server."
