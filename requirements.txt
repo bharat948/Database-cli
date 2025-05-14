@@ -1,0 +1,5 @@
+python-dotenv
+pymongo
+click
+google-generativeai
+structlog

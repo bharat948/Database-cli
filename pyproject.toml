@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mongo_llm_cli"
+version = "0.1.0"
+description = "MongoDB Natural-Language CLI tool"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "python-dotenv",
+    "pymongo",
+    "click",
+    "google-generativeai",
+    "structlog",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-click",
+    "black",
+    "flake8",
+]
+
+[project.scripts]
+mongo-llm = "mongo_llm_cli.cli:main"
+
+[tool.setuptools]
+packages = ["mongo_llm_cli"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.flake8]
+max-line-length = 88 
